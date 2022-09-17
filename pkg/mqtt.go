@@ -12,31 +12,31 @@ import (
 
 type MqttPublisher struct {
 	// Core components
-	config *MqttConfig
+	cfg    *MqttConfig
 	client mqtt.Client
 }
 
 func NewMqttPublisher(cfg *MqttConfig) (*MqttPublisher, error) {
-	p := &MqttPublisher{}
+	p := &MqttPublisher{
+		cfg: cfg,
+	}
 
-	err := p.Setup(cfg)
+	err := p.Setup()
 
 	return p, err
 }
 
-func (p *MqttPublisher) Setup(cfg *MqttConfig) error {
-	p.config = cfg
-
+func (p *MqttPublisher) Setup() error {
 	opts := mqtt.NewClientOptions()
 	opts.SetKeepAlive(60 * time.Second)
 	opts.SetPingTimeout(2 * time.Second)
-	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.Broker, cfg.Port))
-	opts.SetClientID("gmc_mqtt")
-	if cfg.Username != "" {
-		opts.SetUsername(cfg.Username)
+	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", p.cfg.Broker, p.cfg.Port))
+	opts.SetClientID(fmt.Sprintf("gmc_mqtt_%s", p.cfg.Topic))
+	if p.cfg.Username != "" {
+		opts.SetUsername(p.cfg.Username)
 	}
-	if cfg.Password != "" {
-		opts.SetPassword(cfg.Password)
+	if p.cfg.Password != "" {
+		opts.SetPassword(p.cfg.Password)
 	}
 	opts.SetDefaultPublishHandler(p.onMessageReceived)
 	opts.OnConnect = p.onConnectHandler
@@ -84,19 +84,19 @@ func (p *MqttPublisher) Publish(temperature float64, cpm int, version string, is
 }
 
 func (p *MqttPublisher) publishHomeAssistantConfig(version string) error {
-	topicStatus := fmt.Sprintf("homeassistant/binary_sensor/%s/status/config", p.config.Topic)
+	topicStatus := fmt.Sprintf("homeassistant/binary_sensor/%s/status/config", p.cfg.Topic)
 	availabilityConfig := map[string]any{
 		"name":               "Status",
-		"state_topic":        fmt.Sprintf("gmc/%s/status", p.config.Topic),
-		"availability_topic": fmt.Sprintf("gmc/%s/status", p.config.Topic),
+		"state_topic":        fmt.Sprintf("gmc/%s/status", p.cfg.Topic),
+		"availability_topic": fmt.Sprintf("gmc/%s/status", p.cfg.Topic),
 		"device_class":       "connectivity",
 		"payload_on":         "online",
 		"payload_off":        "offline",
 		"expire_after":       "240",
-		"unique_id":          fmt.Sprintf("gmc_%s_status", p.config.Topic),
+		"unique_id":          fmt.Sprintf("gmc_%s_status", p.cfg.Topic),
 		"device": map[string]any{
-			"identifiers":  p.config.Topic,
-			"name":         p.config.Topic,
+			"identifiers":  p.cfg.Topic,
+			"name":         p.cfg.Topic,
 			"manufacturer": "GMC",
 			"model":        "GMC-320 Plus",
 			"sw_version":   version,
@@ -107,19 +107,19 @@ func (p *MqttPublisher) publishHomeAssistantConfig(version string) error {
 	token := p.client.Publish(topicStatus, 0, false, string(payload))
 	token.Wait()
 
-	topicTemperature := fmt.Sprintf("homeassistant/sensor/%s/temperature/config", p.config.Topic)
+	topicTemperature := fmt.Sprintf("homeassistant/sensor/%s/temperature/config", p.cfg.Topic)
 	temperatureConfig := map[string]any{
 		"name":                "Temperature",
-		"state_topic":         fmt.Sprintf("gmc/%s/temperature", p.config.Topic),
-		"availability_topic":  fmt.Sprintf("gmc/%s/status", p.config.Topic),
+		"state_topic":         fmt.Sprintf("gmc/%s/temperature", p.cfg.Topic),
+		"availability_topic":  fmt.Sprintf("gmc/%s/status", p.cfg.Topic),
 		"unit_of_measurement": "°C",
 		"device_class":        "temperature",
 		"state_class":         "measurement",
 		"value_template":      "{{ value_json.value | float }}",
-		"unique_id":           fmt.Sprintf("gmc_%s_temp", p.config.Topic),
+		"unique_id":           fmt.Sprintf("gmc_%s_temp", p.cfg.Topic),
 		"device": map[string]any{
-			"identifiers":  p.config.Topic,
-			"name":         p.config.Topic,
+			"identifiers":  p.cfg.Topic,
+			"name":         p.cfg.Topic,
 			"manufacturer": "GMC",
 			"model":        "GMC-320 Plus",
 			"sw_version":   version,
@@ -129,18 +129,18 @@ func (p *MqttPublisher) publishHomeAssistantConfig(version string) error {
 	token = p.client.Publish(topicTemperature, 0, false, string(payload))
 	token.Wait()
 
-	topicCpm := fmt.Sprintf("homeassistant/sensor/%s/cpm/config", p.config.Topic)
+	topicCpm := fmt.Sprintf("homeassistant/sensor/%s/cpm/config", p.cfg.Topic)
 	cpmConfig := map[string]any{
 		"name":                "CPM",
-		"state_topic":         fmt.Sprintf("gmc/%s/cpm", p.config.Topic),
-		"availability_topic":  fmt.Sprintf("gmc/%s/status", p.config.Topic),
+		"state_topic":         fmt.Sprintf("gmc/%s/cpm", p.cfg.Topic),
+		"availability_topic":  fmt.Sprintf("gmc/%s/status", p.cfg.Topic),
 		"unit_of_measurement": "CPM",
 		"state_class":         "measurement",
 		"value_template":      "{{ value_json.value | int }}",
-		"unique_id":           fmt.Sprintf("gmc_%s_cpm", p.config.Topic),
+		"unique_id":           fmt.Sprintf("gmc_%s_cpm", p.cfg.Topic),
 		"device": map[string]any{
-			"identifiers":  p.config.Topic,
-			"name":         p.config.Topic,
+			"identifiers":  p.cfg.Topic,
+			"name":         p.cfg.Topic,
 			"manufacturer": "GMC",
 			"model":        "GMC-320 Plus",
 			"sw_version":   version,
@@ -154,7 +154,7 @@ func (p *MqttPublisher) publishHomeAssistantConfig(version string) error {
 }
 
 func (p *MqttPublisher) publishTopics(temperature float64, cpm int, isOnline bool) error {
-	topicStatus := fmt.Sprintf("gmc/%s/status", p.config.Topic)
+	topicStatus := fmt.Sprintf("gmc/%s/status", p.cfg.Topic)
 	status := "offline"
 	if isOnline {
 		status = "online"
@@ -162,7 +162,7 @@ func (p *MqttPublisher) publishTopics(temperature float64, cpm int, isOnline boo
 	token := p.client.Publish(topicStatus, 0, false, status)
 	token.Wait()
 
-	topicTemperature := fmt.Sprintf("gmc/%s/temperature", p.config.Topic)
+	topicTemperature := fmt.Sprintf("gmc/%s/temperature", p.cfg.Topic)
 	temperatureValue := map[string]any{
 		"value": temperature,
 		"unit":  "°C",
@@ -171,7 +171,7 @@ func (p *MqttPublisher) publishTopics(temperature float64, cpm int, isOnline boo
 	token = p.client.Publish(topicTemperature, 0, false, string(payload))
 	token.Wait()
 
-	topicCpm := fmt.Sprintf("gmc/%s/cpm", p.config.Topic)
+	topicCpm := fmt.Sprintf("gmc/%s/cpm", p.cfg.Topic)
 	cpmValue := map[string]any{
 		"value": cpm,
 		"unit":  "CPM",
