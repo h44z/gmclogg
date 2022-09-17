@@ -1,0 +1,19 @@
+[Unit]
+Description=GMC Radiation Logger
+ConditionPathExists=/opt/gmclogg/logger
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+Restart=on-failure
+RestartSec=10
+
+WorkingDirectory=/opt/gmclogg
+ExecStart=/opt/gmclogg/logger
+EnvironmentFile=/opt/gmclogg/gmclogg.env
+
+[Install]
+WantedBy=multi-user.target
