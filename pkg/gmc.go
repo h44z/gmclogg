@@ -140,3 +140,15 @@ func (g *Gmc) DisableHeartBeat() error {
 
 	return nil
 }
+
+func (g *Gmc) FlushBus() error {
+	g.mux.Lock()
+	defer g.mux.Unlock()
+
+	err := g.conn.Flush()
+	if err != nil {
+		return fmt.Errorf("failed to flush bus: %w", err)
+	}
+
+	return nil
+}

@@ -68,25 +68,32 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			err := r.FlushBus()
+			if err != nil {
+				logrus.Errorf("[MAIN] GMC error: %v", err)
+			}
+
 			isOnline := true
 			version, err := r.FetchVersion()
 			if err != nil {
-				logrus.Errorf("[MAIN] Lost connection to GCM: %v", err)
+				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
 				_ = r.Reconnect()
 				isOnline = false
 			}
 			cpm, err := r.FetchCpm()
 			if err != nil {
-				logrus.Errorf("[MAIN] Lost connection to GCM: %v", err)
+				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
 				_ = r.Reconnect()
 				isOnline = false
 			}
 			temperature, err := r.FetchTemperature()
 			if err != nil {
-				logrus.Errorf("[MAIN] Lost connection to GCM: %v", err)
+				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
 				_ = r.Reconnect()
 				isOnline = false
 			}
+
+			logrus.Infof("[MAIN] Fetched: %0.2f °C, %d CPM, %s (online: %t)", temperature, cpm, version, isOnline)
 
 			for i, p := range publishers {
 				err := p.Publish(temperature, cpm, version, isOnline)
