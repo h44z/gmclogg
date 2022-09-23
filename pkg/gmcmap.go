@@ -14,7 +14,7 @@ type GmcMap struct {
 
 func NewGmcMap(cfg *GmcMapConfig) *GmcMap {
 	client := &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 20 * time.Second,
 	}
 
 	return &GmcMap{
@@ -23,7 +23,7 @@ func NewGmcMap(cfg *GmcMapConfig) *GmcMap {
 	}
 }
 
-func (g *GmcMap) Publish(temperature float64, cpm int, version string, isOnline bool) error {
+func (g *GmcMap) Publish(_ float64, cpm int, _ string, isOnline bool) error {
 	if !isOnline {
 		return nil // nothing to publish
 	}
@@ -34,7 +34,7 @@ func (g *GmcMap) Publish(temperature float64, cpm int, version string, isOnline 
 		return fmt.Errorf("gmcmap request invalid: %w", err)
 	}
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := g.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("gmcmap request failed: %w", err)
 	}
