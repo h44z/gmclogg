@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/tarm/serial"
 )
@@ -26,7 +27,7 @@ func NewGmc(cfg *GmcConfig) *Gmc {
 }
 
 func (g *Gmc) Open() error {
-	c := &serial.Config{Name: g.cfg.SerialPort, Baud: g.cfg.SerialBaud}
+	c := &serial.Config{Name: g.cfg.SerialPort, Baud: g.cfg.SerialBaud, ReadTimeout: time.Millisecond * 1000}
 	var err error
 	g.conn, err = serial.OpenPort(c)
 	if err != nil {
@@ -35,7 +36,7 @@ func (g *Gmc) Open() error {
 
 	err = g.DisableHeartBeat() // disable heartbeat, we use polling
 	if err != nil {
-		return err
+		return fmt.Errorf("heartbeat error: %w", err)
 	}
 
 	return nil

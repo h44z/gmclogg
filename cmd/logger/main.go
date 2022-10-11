@@ -24,11 +24,11 @@ func main() {
 
 	gCfg := pkg.NewGmcConfig()
 
-	r := pkg.NewGmc(gCfg)
-	if err := r.Open(); err != nil {
+	gmc := pkg.NewGmc(gCfg)
+	if err := gmc.Open(); err != nil {
 		logrus.Fatal("[MAIN] Unable to initialize GMC!", err)
 	}
-	defer r.Close()
+	defer gmc.Close()
 
 	gmcmap, mqtt, influx := features()
 
@@ -68,30 +68,34 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
-			err := r.FlushBus()
+			logrus.Info("[MAIN] Tick started...")
+			err := gmc.FlushBus()
 			if err != nil {
 				logrus.Errorf("[MAIN] GMC error: %v", err)
 			}
 
 			isOnline := true
-			version, err := r.FetchVersion()
+			version, err := gmc.FetchVersion()
 			if err != nil {
 				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
-				_ = r.Reconnect()
+				_ = gmc.Reconnect()
 				isOnline = false
 			}
-			cpm, err := r.FetchCpm()
+			logrus.Debugf("[MAIN] fetched version %s", version)
+			cpm, err := gmc.FetchCpm()
 			if err != nil {
 				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
-				_ = r.Reconnect()
+				_ = gmc.Reconnect()
 				isOnline = false
 			}
-			temperature, err := r.FetchTemperature()
+			logrus.Debugf("[MAIN] fetched cpm %d", cpm)
+			temperature, err := gmc.FetchTemperature()
 			if err != nil {
 				logrus.Errorf("[MAIN] Lost connection to GMC: %v", err)
-				_ = r.Reconnect()
+				_ = gmc.Reconnect()
 				isOnline = false
 			}
+			logrus.Debugf("[MAIN] fetched temperature %f", temperature)
 
 			logrus.Infof("[MAIN] Fetched: %0.2f °C, %d CPM, %s (online: %t)", temperature, cpm, version, isOnline)
 
